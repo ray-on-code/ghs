@@ -27,7 +27,7 @@ var configPathCmd = &cobra.Command{
 		if err != nil {
 			return err
 		}
-		fmt.Println(path)
+		fmt.Fprintln(cmd.OutOrStdout(), path)
 		return nil
 	},
 }
@@ -40,7 +40,7 @@ var configInitCmd = &cobra.Command{
 		if err != nil {
 			return err
 		}
-		fmt.Printf("📝 設定ファイルを準備しました: %s\n", path)
+		fmt.Fprintf(cmd.OutOrStdout(), "📝 設定ファイルを準備しました: %s\n", path)
 		return nil
 	},
 }

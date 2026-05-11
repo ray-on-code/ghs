@@ -20,7 +20,7 @@ type Config struct {
 	GitHubToken string `mapstructure:"github_token"`
 
 	// CloneBaseDir はクローン先のベースディレクトリです。
-	// 未設定の場合は $HOME/src が使われます。
+	// 未設定の場合は $HOME/ghs が使われます。
 	CloneBaseDir string `mapstructure:"clone_base_dir"`
 }
 
@@ -48,7 +48,7 @@ func Load() (*Config, error) {
 	if err != nil {
 		return nil, fmt.Errorf("HOME ディレクトリの解決に失敗しました: %w", err)
 	}
-	v.SetDefault("clone_base_dir", filepath.Join(home, "src"))
+	v.SetDefault("clone_base_dir", filepath.Join(home, "ghs"))
 	v.SetDefault("github_token", "")
 
 	// 環境変数 (GHS_GITHUB_TOKEN, GHS_CLONE_BASE_DIR) も任意で受け付ける
@@ -115,17 +115,13 @@ func EnsureConfigFile() (string, error) {
 		return "", err
 	}
 
-	home, err := os.UserHomeDir()
-	if err != nil {
-		return "", err
-	}
-	template := fmt.Sprintf(`# ghs configuration file
+	const template = `# ghs configuration file
 # gh CLI のトークンが優先されますが、未設定の場合はこちらが利用されます。
 github_token = ""
 
 # クローン先のベースディレクトリ (ghq 準拠: $base/github.com/Owner/Repo)
-clone_base_dir = %q
-`, filepath.Join(home, "src"))
+clone_base_dir = "~/ghs"
+`
 
 	if err := os.WriteFile(path, []byte(template), 0o600); err != nil {
 		return "", fmt.Errorf("設定ファイルの作成に失敗しました: %w", err)

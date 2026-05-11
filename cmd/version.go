@@ -17,6 +17,6 @@ var versionCmd = &cobra.Command{
 	Use:   "version",
 	Short: "ghs のバージョンを表示します",
 	Run: func(cmd *cobra.Command, args []string) {
-		fmt.Printf("ghs %s\n", Version)
+		fmt.Fprintf(cmd.OutOrStdout(), "ghs %s\n", Version)
 	},
 }

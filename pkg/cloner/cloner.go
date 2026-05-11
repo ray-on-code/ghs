@@ -4,9 +4,16 @@ package cloner
 import (
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
+)
+
+// テスト用に差し替え可能なエイリアス。
+var (
+	execLookPath = exec.LookPath
+	execCommand  = exec.Command
 )
 
 // ErrAlreadyExists はクローン先ディレクトリが既に存在する場合に返されます。
@@ -44,15 +51,18 @@ type Options struct {
 	AllowExisting bool
 	// UseSSH が true の場合、 git@github.com:Owner/Repo.git をクローン URL として利用します。
 	UseSSH bool
+	// Stdout / Stderr が指定されていれば git clone の出力先として利用します (テスト用)。
+	Stdout io.Writer
+	Stderr io.Writer
 }
 
 // Clone は git clone を実行します。
 //
-// - 既にクローン先ディレクトリが存在する場合は ErrAlreadyExists を返します
-//   （Options.AllowExisting が true の場合のみ呼び出し側に判断を委ねます）。
-// - git コマンドが存在しない場合は ErrGitNotInstalled を返します。
+//   - 既にクローン先ディレクトリが存在する場合は ErrAlreadyExists を返します
+//     （Options.AllowExisting が true の場合のみ呼び出し側に判断を委ねます）。
+//   - git コマンドが存在しない場合は ErrGitNotInstalled を返します。
 func Clone(dest Destination, opts Options) error {
-	if _, err := exec.LookPath("git"); err != nil {
+	if _, err := execLookPath("git"); err != nil {
 		return ErrGitNotInstalled
 	}
 
@@ -70,10 +80,10 @@ func Clone(dest Destination, opts Options) error {
 		return fmt.Errorf("親ディレクトリの作成に失敗しました: %w", err)
 	}
 
-	url := cloneURL(dest, opts.UseSSH)
-	cmd := exec.Command("git", "clone", url, full)
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
+	url := CloneURL(dest, opts.UseSSH)
+	cmd := execCommand("git", "clone", url, full)
+	cmd.Stdout = orDefault(opts.Stdout, os.Stdout)
+	cmd.Stderr = orDefault(opts.Stderr, os.Stderr)
 	cmd.Stdin = os.Stdin
 
 	if err := cmd.Run(); err != nil {
@@ -82,7 +92,16 @@ func Clone(dest Destination, opts Options) error {
 	return nil
 }
 
-func cloneURL(dest Destination, useSSH bool) string {
+func orDefault(w io.Writer, def io.Writer) io.Writer {
+	if w == nil {
+		return def
+	}
+	return w
+}
+
+// CloneURL は与えられた Destination からクローン URL を組み立てます。
+// useSSH が true の場合 git@github.com:Owner/Repo.git 形式、false の場合 https://github.com/Owner/Repo.git 形式を返します。
+func CloneURL(dest Destination, useSSH bool) string {
 	if useSSH {
 		return fmt.Sprintf("git@%s:%s/%s.git", dest.Host, dest.Owner, dest.Repo)
 	}
